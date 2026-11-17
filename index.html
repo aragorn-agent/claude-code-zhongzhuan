@@ -1,0 +1,90 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Code 中转站怎么选与配置（2026 实测版）</title>
+<meta name="description" content="Claude Code 接入中转站完整指南：环境变量配置、20 家 Claude 系实测数据、降智判断方法与常见坑。基于 10,203 条真实探测样本，更新于 2026-11-17。">
+<link rel="canonical" href="https://aragorn-agent.github.io/claude-code-zhongzhuan/">
+<style>*{box-sizing:border-box}body{margin:0;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#0b0e14;color:#e6e4df;line-height:1.75}
+a{color:#5fb0f5;text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:880px;margin:0 auto;padding:28px 18px 80px}
+header.top{border-bottom:1px solid #1c2233;padding:18px 0}
+.brand{font-size:19px;font-weight:800;color:#fff}.brand span{color:#57c99b}
+h1{font-size:28px;line-height:1.35;margin:26px 0 10px}
+h2{font-size:21px;margin:40px 0 10px;color:#fff;border-left:4px solid #57c99b;padding-left:12px}
+h3{font-size:16px;color:#e6e4df;margin:24px 0 8px}
+.sub{color:#93a0b4;font-size:14px}
+code,pre{font-family:Consolas,Menlo,monospace}
+code{background:#141a26;padding:2px 6px;border-radius:5px;font-size:13.5px;color:#9ecbff}
+pre{background:#0f1420;border:1px solid #1e2638;border-radius:10px;padding:16px;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;padding:0;color:#c9d8ee}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0;background:#0d1119;border:1px solid #1c2233}
+th{background:#121828;color:#a8b3c7;text-align:left;padding:9px 11px}
+td{padding:8px 11px;border-top:1px solid #161c2b;white-space:nowrap}
+.ok{color:#4ade80;font-weight:600}
+.rec{background:linear-gradient(135deg,#0d1a14,#0e1524);border:1px solid #1e4d3a;border-radius:14px;padding:20px;margin:20px 0}
+.rec h2{border:none;padding:0;margin:0 0 8px;color:#8ce0bb}
+.cta{display:inline-block;background:#57c99b;color:#08110d;font-weight:700;padding:9px 20px;border-radius:9px;font-size:14px}
+.cta:hover{text-decoration:none;background:#6bd9ab}
+.warn{background:#1a1210;border-left:3px solid #b4663a;padding:10px 14px;border-radius:6px;color:#d3b8a4;font-size:13.5px;margin:14px 0}
+.tip{background:#101722;border-left:3px solid #2c5b8f;padding:10px 14px;border-radius:6px;color:#a9bcd4;font-size:13.5px;margin:14px 0}
+footer{border-top:1px solid #1c2233;margin-top:60px;padding:20px 0;color:#68738c;font-size:12.5px}
+</style></head><body><div class="wrap">
+<header class="top"><div class="brand">CC<span>Guide</span> · Claude Code 实战手册</div>
+<div class="sub">数据快照 2026-10-28 · 更新 2026-11-17</div></header>
+
+<h1>Claude Code 中转站怎么选与配置（2026 实测版）</h1>
+<p class="sub">本文基于 10,203 条公开探测样本整理。只写真实数据与可复现步骤，不接推广。</p>
+
+<div class="rec">
+<h2>主力推荐：Aimyria</h2>
+<p>我们的日常主力是 <a href="https://aimyria.com/"><b>Aimyria</b></a>：近 30 天主力模型可用率最高 98.84%，Claude Code / Codex 开箱即接，主力模型价格为官方价 2.3 折起，51 个在售模型共用一个 Key。新用户有测试额度，先跑通再充值。</p>
+<p><a class="cta" href="https://aimyria.com/register">去 Aimyria 注册领取 →</a></p>
+<p style="font-size:12px;color:#7c8699">利益披露：Aimyria 为本手册运营方自营；下表第三方站点为独立探测数据，与自营口径分开，无返佣。</p>
+</div>
+
+<h2>一、Claude Code 接中转站的原理</h2>
+<p>Claude Code 官方客户端支持通过环境变量替换 API 端点。中转站提供与 Anthropic 官方相同格式的 <code>/v1/messages</code> 接口，所以只要改两个环境变量，不需要装任何插件：</p>
+<pre><code># Windows PowerShell
+$env:ANTHROPIC_BASE_URL = "https://你的中转站地址"
+$env:ANTHROPIC_AUTH_TOKEN = "sk-你的中转站Key"
+claude
+
+# macOS / Linux
+export ANTHROPIC_BASE_URL="https://你的中转站地址"
+export ANTHROPIC_AUTH_TOKEN="sk-你的中转站Key"
+claude</code></pre>
+<div class="tip">想长期生效，把两行写进 shell 配置（<code>~/.bashrc</code> / PowerShell <code>$PROFILE</code>）。Aimyria 的 Base URL 是 <code>https://aimyria.com</code>，注册后在控制台拿 Key 即可用上表环境变量直接接入。</div>
+
+<h2>二、怎么判断一家中转站「不降智」</h2>
+<p>「降智」指中转站偷偷把请求换成低配模型或削减上下文。三个可自查的信号：</p>
+<h3>1. 看响应头与模型名回显</h3>
+<p>让 Claude Code 执行 <code>/status</code>，确认返回的模型 ID 与购买的一致（如 <code>claude-opus-5-5</code> 而不是莫名的小型号）。</p>
+<h3>2. 用固定探针题测一致性</h3>
+<p>准备 3~5 个固定问题（长上下文摘要、代码推理），每天同一时间跑一遍，对比回答质量是否漂移。公开探测就是这么做的——下表「在线率」即来自每日探针序列。</p>
+<h3>3. 看长上下文表现</h3>
+<p>喂 50K+ token 的真实代码库任务，降智站通常在这一步露馅：回答变短、忘记前文、拒绝执行。</p>
+
+<h2>三、Claude 系实测数据 Top 20（样本 ≥ 20）</h2>
+<p>按最高在线率排序；「在线率」来自每日探针的 24 次序列通过率，样本为近期探测次数。价格已折算为每百万 token 人民币。</p>
+<table><tr><th>#</th><th>站点</th><th>Claude 系在线率</th><th>平均延迟</th><th>Opus 输入价</th><th>样本数</th></tr><tr><td>1</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Token 88</a><br><small style='color:#7c8699'>t8api.com</small></td><td class='ok'>100.0%</td><td>4.5s</td><td>¥3.80/M</td><td>647</td></tr><tr><td>2</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Modelflare</a><br><small style='color:#7c8699'>origin.modelflare.dev</small></td><td class='ok'>100.0%</td><td>6.9s</td><td>¥1.62/M</td><td>433</td></tr><tr><td>3</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>幻灵AI</a><br><small style='color:#7c8699'>api.huanling.icu</small></td><td class='ok'>100.0%</td><td>4.9s</td><td>¥0.80/M</td><td>348</td></tr><tr><td>4</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>sidrune</a><br><small style='color:#7c8699'>sidrune.ai</small></td><td class='ok'>100.0%</td><td>6.8s</td><td>¥4.00/M</td><td>262</td></tr><tr><td>5</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>RunAPI</a><br><small style='color:#7c8699'>runapi.host</small></td><td class='ok'>100.0%</td><td>6.1s</td><td>¥8.10/M</td><td>262</td></tr><tr><td>6</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>9527code</a><br><small style='color:#7c8699'>9527.codes</small></td><td class='ok'>100.0%</td><td>5.1s</td><td>¥5.80/M</td><td>217</td></tr><tr><td>7</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Modelsell</a><br><small style='color:#7c8699'>modelsell.com</small></td><td class='ok'>100.0%</td><td>5.4s</td><td>¥2.72/M</td><td>216</td></tr><tr><td>8</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>池中鱼</a><br><small style='color:#7c8699'>poolai.chat</small></td><td class='ok'>100.0%</td><td>5.5s</td><td>—</td><td>175</td></tr><tr><td>9</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>SaTuoAPI</a><br><small style='color:#7c8699'>satuoapi.online</small></td><td class='ok'>100.0%</td><td>6.7s</td><td>¥4.80/M</td><td>174</td></tr><tr><td>10</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>序点算力</a><br><small style='color:#7c8699'>api.xudiansuanli.com</small></td><td class='ok'>100.0%</td><td>6.7s</td><td>¥5.50/M</td><td>138</td></tr><tr><td>11</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>ttflows</a><br><small style='color:#7c8699'>api.ttflows.com</small></td><td class='ok'>100.0%</td><td>2.7s</td><td>¥4.72/M</td><td>132</td></tr><tr><td>12</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>智惠API</a><br><small style='color:#7c8699'>api.api2cn.com</small></td><td class='ok'>100.0%</td><td>6.2s</td><td>¥5.40/M</td><td>132</td></tr><tr><td>13</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Moe Api</a><br><small style='color:#7c8699'>moeapi.cloud</small></td><td class='ok'>100.0%</td><td>3.7s</td><td>¥5.60/M</td><td>132</td></tr><tr><td>14</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>CodeKey</a><br><small style='color:#7c8699'>codekey.ai</small></td><td class='ok'>100.0%</td><td>2.9s</td><td>¥2.60/M</td><td>132</td></tr><tr><td>15</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Volt</a><br><small style='color:#7c8699'>voltapi.ai</small></td><td class='ok'>100.0%</td><td>6.6s</td><td>¥4.80/M</td><td>131</td></tr><tr><td>16</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>88API Token聚合平台</a><br><small style='color:#7c8699'>88api.ai</small></td><td class='ok'>100.0%</td><td>4.0s</td><td>¥5.60/M</td><td>131</td></tr><tr><td>17</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>GGUUAI</a><br><small style='color:#7c8699'>gguuai.com</small></td><td class='ok'>100.0%</td><td>5.8s</td><td>¥4.40/M</td><td>131</td></tr><tr><td>18</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>DragToken</a><br><small style='color:#7c8699'>dragtokens.com</small></td><td class='ok'>100.0%</td><td>4.5s</td><td>¥5.60/M</td><td>131</td></tr><tr><td>19</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Moniker</a><br><small style='color:#7c8699'>aimoniker.top</small></td><td class='ok'>100.0%</td><td>4.2s</td><td>¥112.50/M</td><td>131</td></tr><tr><td>20</td><td><a href='https://agentapiai.com/sites/' style='color:#e6e4df;font-weight:600'>Logits Token</a><br><small style='color:#7c8699'>logitstoken.com</small></td><td class='ok'>100.0%</td><td>3.9s</td><td>¥6.80/M</td><td>131</td></tr></table>
+<p class="sub">完整 106 站名单与逐站档案见 <a href="https://agentapiai.com/sites/">agentapiai.com 站点库</a>。</p>
+
+<h2>四、常见坑（实测踩过的）</h2>
+<h3>坑 1：环境变量写错位置</h3>
+<p>PowerShell 的 <code>$env:</code> 只对当前会话生效，关窗即失效；写进 <code>$PROFILE</code> 才长期生效。CMD 用户要用 <code>setx</code>。</p>
+<h3>坑 2：Key 前缀混淆</h3>
+<p>部分站下发 <code>sk-</code> 开头 Key，也有站用自定义前缀；<code>ANTHROPIC_AUTH_TOKEN</code> 填的是中转站 Key，不是 Anthropic 官方 Key。</p>
+<h3>坑 3：混用官方与中转配置</h3>
+<p>同一台机器切换官方/中转时，残留的 <code>ANTHROPIC_BASE_URL</code> 会让官方 Key 打到中转站上。切换前先 <code>echo $env:ANTHROPIC_BASE_URL</code> 检查。</p>
+<h3>坑 4：只看价格不看样本</h3>
+<p>低于官方 1 折的 Opus 价格大概率伴随降智或超卖。上表价格与在线率放在一起看，才有参考价值。</p>
+<div class="warn">数据说明：探测为第三方公开快照（2026-10-28），覆盖有限，购买前请以各站当前状态为准。任何站点数据缺失处显示 —，不编造。</div>
+
+<h2>五、FAQ</h2>
+<h3>Claude Code 中转站和官方 API 什么区别？</h3>
+<p>接口格式一致，差别在计费（中转支持支付宝/微信、按量计费）与供给方式。官方账户在服务区且预算充足时仍是首选。</p>
+<h3>中转站跑 Claude Code 稳定吗？</h3>
+<p>头部站点近 30 天探针在线率可达 95%+（见上表），但任何中转都受上游配额影响，建议主力+备用双站配置。</p>
+<h3>Aimyria 怎么接入 Claude Code？</h3>
+<p>注册 <a href="https://aimyria.com/register">aimyria.com</a> → 控制台创建 Key → 按本文第一节设置 <code>ANTHROPIC_BASE_URL</code> 与 <code>ANTHROPIC_AUTH_TOKEN</code> 即可。有免费测试额度可先验证。</p>
+
+<footer>CCGuide · Claude Code 中转站实战手册。探测数据快照 2026-10-28；本文不含返佣链接，排名不收费。</footer>
+</div></body></html>
